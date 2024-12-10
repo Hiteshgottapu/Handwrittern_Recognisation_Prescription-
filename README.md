@@ -1,8 +1,7 @@
-Based on the folder structure you provided in the image, here's the tailored README file:
 
 ---
 
-# Medical Prescription Reader
+# Revolutionizing Handwritten Prescription Recognition: A High-Accuracy CNN Model with Explainable AI
 
 An AI-driven application designed to interpret and extract text from medical prescriptions. This project leverages a pre-trained deep learning model and OCR technology to enhance medical data digitization.
 
@@ -42,7 +41,6 @@ Medical Scripts/
 ├── model-building.ipynb       # Jupyter Notebook for training and building the model
 ├── ocr_result.txt             # Sample text output from OCR
 ├── requirements.txt           # List of dependencies for the project
-└── test.dat                   # Test data file (if applicable)
 ```
 
 ---
