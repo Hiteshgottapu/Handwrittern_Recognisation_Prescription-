@@ -2,6 +2,11 @@ import streamlit as st
 from PIL import Image, UnidentifiedImageError
 import pytesseract
 import io
+import tensorflow as tf
+import os
+import numpy as np
+import cv2
+import json
 
 # Set the Tesseract path (make sure this path points to where Tesseract is installed on your machine)
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'  # Update this path if necessary
@@ -17,331 +22,467 @@ BACKGROUND_COLOR = '#f0f8ff'  # Soft light blue background
 TEXT_COLOR = '#333'  # Dark text for readability
 ACCENT_COLOR = '#00bcd4'  # Teal accent color
 
-# Inject custom CSS for modern UI & UX improvements
 st.markdown(f"""
     <style>
-        /* General Body Styling */
+        /* General Styling */
         body {{
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, {BACKGROUND_COLOR}, #e1f5fe);
-            color: {TEXT_COLOR};
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(
+                120deg,
+                #ff9a9e 0%,
+                #fad0c4 30%,
+                #fbc2eb 60%,
+                #a6c1ee 100%
+            );
+            background-size: 400% 400%;
+            animation: gradientAnimation 12s ease infinite;
+            color: #ffffff;
             margin: 0;
             padding: 0;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            box-sizing: border-box;
+            overflow-x: hidden;
         }}
 
-        /* Main Container Styling */
+        /* Gradient Animation */
+        @keyframes gradientAnimation {{
+            0% {{
+                background-position: 0% 50%;
+            }}
+            50% {{
+                background-position: 100% 50%;
+            }}
+            100% {{
+                background-position: 0% 50%;
+            }}
+        }}
+
+        /* Main Container */
         .main-container {{
-            background-color: #fff;
+            background: rgba(20, 20, 30, 0.95);
             border-radius: 20px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
-            padding: 40px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+            padding: 50px;
+            max-width: 1100px;
             width: 90%;
-            max-width: 1200px;
-            text-align: center;
-            margin-top: 40px;
-            transition: all 0.3s ease;
-            overflow: hidden;
-        }}
-        
-        .main-container:hover {{
-            transform: scale(1.02);
+            margin: 20px auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transform: scale(1);
+            transition: all 0.4s ease;
         }}
 
-        /* Header */
+        .main-container:hover {{
+            transform: translateY(-10px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+        }}
+
+        /* Header Styling */
         .header {{
-            font-size: 48px;
-            font-weight: 700;
-            background: linear-gradient(135deg, {ACCENT_COLOR}, {PRIMARY_COLOR});
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #42a5f5, #e040fb);
             -webkit-background-clip: text;
-            color: transparent;
+            -webkit-text-fill-color: transparent;
             margin-bottom: 25px;
-            text-transform: uppercase;
+            text-align: center;
+            animation: fadeInDown 1s ease-out;
         }}
 
         /* Subheader Styling */
         .subheader {{
-            color: {TEXT_COLOR};
-            font-size: 18px;
-            margin-top: 0;
-            font-weight: 300;
-            line-height: 1.5;
+            font-size: 1.4rem;
+            color: #c5c5c5;
+            text-align: center;
+            margin-bottom: 30px;
+            line-height: 1.8;
+            animation: fadeInUp 1s ease-out;
         }}
 
-        /* File Uploader Styling */
-        .stFileUploader {{
-            background-color: #fff;
-            padding: 30px;
-            border: 3px dashed {PRIMARY_COLOR};
+        @keyframes fadeInDown {{
+            0% {{
+                opacity: 0;
+                transform: translateY(-30px);
+            }}
+            100% {{
+                opacity: 1;
+                transform: translateY(0);
+            }}
+        }}
+
+        @keyframes fadeInUp {{
+            0% {{
+                opacity: 0;
+                transform: translateY(30px);
+            }}
+            100% {{
+                opacity: 1;
+                transform: translateY(0);
+            }}
+        }}
+
+        /* File Upload Section */
+        .file-upload {{
+            background: rgba(40, 40, 60, 0.85);
+            padding: 25px;
             border-radius: 15px;
+            border: 2px dashed #42a5f5;
+            text-align: center;
             cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.3s ease;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            display: inline-block;
             width: 100%;
-        }}
-
-        .stFileUploader:hover {{
-            background-color: #f0f8ff;
-            transform: scale(1.05);
-        }}
-
-        /* Button Styling */
-        .stButton button {{
-            background-color: {PRIMARY_COLOR};
-            color: white;
-            border: none;
-            padding: 15px 35px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: 8px;
+            max-width: 500px;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            animation: pulseEffect 2s infinite;
+        }}
+
+        .file-upload:hover {{
+            background: rgba(60, 60, 80, 0.95);
+            transform: scale(1.05);
+            border-color: #1e88e5;
+        }}
+
+        @keyframes pulseEffect {{
+            0% {{
+                box-shadow: 0 0 5px rgba(66, 165, 245, 0.5);
+            }}
+            50% {{
+                box-shadow: 0 0 15px rgba(66, 165, 245, 0.8);
+            }}
+            100% {{
+                box-shadow: 0 0 5px rgba(66, 165, 245, 0.5);
+            }}
+        }}
+
+        /* Buttons */
+        .stButton button {{
+            background: linear-gradient(90deg, #42a5f5, #1e88e5);
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            padding: 15px 35px;
+            border: none;
+            border-radius: 12px;
+            margin: 15px 0;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            transition: all 0.4s ease;
         }}
 
         .stButton button:hover {{
-            background-color: #45a049;
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+            background: linear-gradient(90deg, #1e88e5, #42a5f5);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.6);
+            transform: translateY(-5px);
         }}
 
         .stButton button:active {{
-            transform: scale(0.98);
+            transform: translateY(2px);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
         }}
 
-        /* Camera Button Styling */
-        .stCameraInput {{
-            background-color: {PRIMARY_COLOR};
-            color: white;
-            border: none;
-            padding: 15px 35px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: all 0.3s ease;
+        /* Graph Section */
+        .graph-container {{
+            background: rgba(30, 30, 50, 0.9);
+            padding: 40px;
+            border-radius: 15px;
+            margin-top: 30px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
             width: 100%;
-            display: block;
-            margin-top: 20px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            max-width: 900px;
+            animation: slideIn 1.2s ease-out;
         }}
 
-        .stCameraInput:hover {{
-            background-color: #45a049;
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
-        }}
-
-        .stCameraInput:active {{
-            transform: scale(0.98);
-        }}
-
-        /* Text Area Styling */
-        .stTextArea textarea {{
-            background-color: #f9f9f9;
-            border: 2px solid #ddd;
-            border-radius: 10px;
-            padding: 15px;
-            font-size: 16px;
-            width: 100%;
-            height: 250px;
-            resize: vertical;
-            transition: border-color 0.3s ease;
-            box-sizing: border-box;
-        }}
-
-        .stTextArea textarea:focus {{
-            border-color: {PRIMARY_COLOR};
-            outline: none;
-        }}
-
-        /* Download Button Styling */
-        .stDownloadButton button {{
-            background-color: {SECONDARY_COLOR};
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            font-size: 16px;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-        }}
-
-        .stDownloadButton button:hover {{
-            background-color: #1e88e5;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }}
-
-        .stDownloadButton button:active {{
-            transform: scale(0.98);
-        }}
-
-        /* Spinner Styling */
-        .stSpinner div {{
-            border-top: 4px solid {PRIMARY_COLOR};
-            animation: rotate 1s linear infinite;
-        }}
-
-        @keyframes rotate {{
+        @keyframes slideIn {{
             0% {{
-                transform: rotate(0deg);
+                opacity: 0;
+                transform: translateX(-50px);
             }}
             100% {{
-                transform: rotate(360deg);
+                opacity: 1;
+                transform: translateX(0);
             }}
         }}
 
-        /* Layout Adjustments */
-        .stContainer {{
+        .graph {{
             display: flex;
-            justify-content: space-between;
-            gap: 30px;
-            flex-wrap: wrap;
+            flex-direction: column;
+            align-items: center;
         }}
 
-        .stContainer > div {{
-            flex: 1;
-            min-width: 300px;
-            box-sizing: border-box;
-        }}
-
-        /* Image Container */
-        .image-container {{
-            margin-top: 20px;
-            padding: 20px;
-            border: 3px solid {PRIMARY_COLOR};
+        .bar {{
+            width: 50px;
+            height: 150px;
+            background: linear-gradient(to top, #42a5f5, #e040fb);
             border-radius: 10px;
-            background-color: #f9f9f9;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            width: 70%;
-            margin-left: auto;
-            margin-right: auto;
+            margin: 5px;
+            transition: height 0.4s ease, transform 0.4s ease;
+            animation: floatEffect 3s infinite;
+        }}
+
+        .bar:hover {{
+            height: 200px;
+            transform: translateY(-15px);
+        }}
+
+        @keyframes floatEffect {{
+            0%, 100% {{
+                transform: translateY(0);
+            }}
+            50% {{
+                transform: translateY(-10px);
+            }}
+        }}
+
+        .bar-label {{
+            margin-top: 10px;
+            font-size: 1rem;
+            color: #c5c5c5;
+        }}
+
+        /* Footer Section */
+        .footer {{
+            background: rgba(20, 20, 30, 0.95);
+            padding: 20px;
+            margin-top: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
             text-align: center;
         }}
 
-        .image-container img {{
-            max-width: 100%;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        .footer-content {{
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }}
 
-        /* Clear Image Button */
-        .stButton.clear {{
-            background-color: {ALERT_COLOR};
-            margin-top: 20px;
+        .footer-icons {{
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 10px;
+            gap: 20px;
+        }}
+
+        .footer-icons img {{
+            width: 40px;
+            height: 40px;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }}
-        
-        .stButton.clear:hover {{
-            background-color: #f44336;
-            transform: scale(1.05);
+            cursor: pointer;
         }}
 
-        .stButton.clear:active {{
-            transform: scale(0.98);
+        .footer-icons img:hover {{
+            transform: scale(1.1);
+            filter: drop-shadow(0 0 5px #42a5f5);
         }}
 
+        .footer-text {{
+            font-size: 0.9rem;
+            color: #cccccc;
+            margin-top: 10px;
+        }}
+
+        .footer-text a {{
+            color: #42a5f5;
+            text-decoration: none;
+            font-weight: bold;
+        }}
+
+        .footer-text a:hover {{
+            color: #e040fb;
+        }}
     </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<h1 class="header">Revolutionizing Handwritten Prescription Recognition: A High-Accuracy CNN Model with Explainable AI</h1>', unsafe_allow_html=True)
 
+# Load the pre-trained model
+@st.cache_resource
+def load_model():
+    return tf.keras.models.load_model("model_saved.keras")
+
+model = load_model()
+
+# Function to preprocess the image for the model
+def preprocess_image(image, target_size=(28, 28)):
+    try:
+        # Convert to grayscale if not already
+        if image.mode != "L":
+            image = image.convert("L")  # Convert to grayscale
+        
+        # Resize to target size
+        image = image.resize(target_size)
+        
+        # Convert to numpy array
+        image = np.array(image, dtype=np.float32)
+        
+        # Normalize pixel values
+        image = image / 255.0
+        
+        # Add batch and channel dimensions
+        image = np.expand_dims(image, axis=-1)  # Add channel dimension
+        image = np.expand_dims(image, axis=0)   # Add batch dimension
+        
+        return image
+    except Exception as e:
+        st.error(f"Error in preprocessing the image: {str(e)}")
+        return None
+
+# Function to enhance image for OCR
+def enhance_for_ocr(image, grayscale=False):
+    try:
+        # Convert PIL Image to OpenCV format
+        image = np.array(image)
+
+        # Ensure grayscale for adaptive thresholding
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+
+        # Apply Gaussian Blur for noise reduction
+        image = cv2.GaussianBlur(image, (5, 5), 0)
+
+        # Apply adaptive thresholding to improve contrast
+        image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+
+        # Optional: Resize for better OCR performance
+        height, width = image.shape[:2]
+        image = cv2.resize(image, (width * 2, height * 2), interpolation=cv2.INTER_LINEAR)
+
+        # Convert back to PIL Image
+        enhanced_image = Image.fromarray(image)
+
+        # If the user wants grayscale OCR, return as is; otherwise, convert back to original format
+        if not grayscale:
+            # Convert the image back to RGB
+            enhanced_image = enhanced_image.convert("RGB")
+
+        return enhanced_image
+    except Exception as e:
+        st.error(f"Error in enhancing the image for OCR: {str(e)}")
+        return None
+
+# Function to extract text using OCR with confidence evaluation
+def extract_text(image, grayscale=False):
+    try:
+        # Enhance the image for OCR
+        enhanced_image = enhance_for_ocr(image, grayscale=grayscale)
+        if not enhanced_image:
+            return None, 0  # No text and zero confidence
+
+        # Extract text data with confidence
+        custom_config = r'--oem 3 --psm 6'  # Optimal settings for mixed text and graphics
+        data = pytesseract.image_to_data(enhanced_image, config=custom_config, output_type=pytesseract.Output.DICT)
+
+        # Combine detected text and calculate average confidence
+        text = " ".join([data['text'][i] for i in range(len(data['text'])) if int(data['conf'][i]) > 0])
+        confidences = [int(data['conf'][i]) for i in range(len(data['conf'])) if int(data['conf'][i]) > 0]
+        average_confidence = np.mean(confidences) if confidences else 0
+
+        return text.strip(), average_confidence
+    except Exception as e:
+        st.error(f"Error during text extraction: {str(e)}")
+        return None, 0
+
+# Sidebar for preprocessing options
+st.sidebar.header("Preprocessing Options")
+grayscale = st.sidebar.checkbox("Convert to Grayscale before OCR", value=False)
+
+# Toggle camera feature
+st.sidebar.header("Camera Control")
+if "camera_on" not in st.session_state:
+    st.session_state["camera_on"] = False
+
+if st.sidebar.button("Turn Camera ON"):
+    st.session_state["camera_on"] = True
+if st.sidebar.button("Turn Camera OFF"):
+    st.session_state["camera_on"] = False
+
+# Layout for camera and file uploader
 with st.container():
     st.markdown('<div class="main-container">', unsafe_allow_html=True)
 
-    # Header and Description
-    st.markdown('<p class="subheader">Capture or upload an image to extract text using Tesseract OCR.</p>', unsafe_allow_html=True)
-
-    # Sidebar for preprocessing options
-    st.sidebar.header("Preprocessing Options")
-    grayscale = st.sidebar.checkbox("Convert to Grayscale before OCR", value=False)
-    contrast = st.sidebar.slider("Adjust Contrast", 1.0, 2.0, 1.0)
-
-    # Initialize session state for uploaded file if it doesn't exist
-    if 'uploaded_file' not in st.session_state:
-        st.session_state['uploaded_file'] = None
-
-    # Initialize session state to track the camera visibility
-    if 'camera_on' not in st.session_state:
-        st.session_state['camera_on'] = False
-
-    # Camera Control
-    camera_on_button = st.button("Turn on Camera")
-    if camera_on_button:
-        st.session_state['camera_on'] = True
-
-    if st.button("Turn off Camera"):
-        st.session_state['camera_on'] = False
-
-    # Layout for camera and uploaded image
-    st.markdown('<div class="stContainer">', unsafe_allow_html=True)
-
-    # Camera input section
+    # Camera Input Section
     captured_image = None
-    if st.session_state['camera_on']:
+    if st.session_state["camera_on"]:
         captured_image = st.camera_input("Capture Image")
         if captured_image:
-            st.image(captured_image, caption="Captured Image", use_column_width=True)
+            st.image(captured_image, caption="Captured Image", use_container_width=True)
 
-    # Image Upload Section
-    uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
-    
+    # File Upload Section
+    uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
+    image = None
+
+    # Check file size (limit to 5MB)
     if uploaded_file:
-        # Read the uploaded file into a byte stream
-        img_bytes = uploaded_file.read()
+        if uploaded_file.size > 5 * 1024 * 1024:
+            st.error("The uploaded file exceeds the 5MB size limit. Please upload a smaller file.")
+            uploaded_file = None
+        else:
+            try:
+                img_bytes = uploaded_file.read()
+                image = Image.open(io.BytesIO(img_bytes))  # Open using PIL
+                st.image(image, caption=f"Uploaded Image: {uploaded_file.name}", use_container_width=True)
+            except UnidentifiedImageError:
+                st.error("The uploaded file is not a valid image. Please upload a valid image file (jpg, jpeg, png).")
 
-        # Open the image using PIL
-        image = Image.open(io.BytesIO(img_bytes))
 
-        # Display the uploaded image
-        st.image(image, caption=f"Uploaded Image: {uploaded_file.name}", use_column_width=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # OCR Processing Button
-    if st.button("Start OCR"):
+    # Model Prediction and OCR
+    if st.button("Start Prediction and Text Extraction"):
         if uploaded_file or captured_image:
-            with st.spinner("Extracting text... Please wait."):
-
+            with st.spinner("Processing the image... Please wait."):
                 try:
-                    # Choose the image to process (either uploaded or captured)
-                    if uploaded_file:
+                    # Use captured image or uploaded file
+                    if captured_image:
+                        img_bytes = captured_image.getvalue()  # Convert camera input to bytes
                         image = Image.open(io.BytesIO(img_bytes))
-                    elif captured_image:
-                        image = Image.open(io.BytesIO(captured_image))
 
-                    # Preprocessing (convert to grayscale if needed)
-                    if grayscale:
-                        image = image.convert("L")
+                    if image:
+                        # **Step 1: Preprocess image for model**
+                        processed_image = preprocess_image(image)
+                        
+                        # Make prediction using the model
+                        if processed_image is not None:
+                            prediction = model.predict(processed_image)
+                            predicted_class = np.argmax(prediction)
+                            classification_confidence = np.max(prediction) * 100
 
-                    # Perform OCR
-                    ocr_result = pytesseract.image_to_string(image)
+                            # Display classification results
+                            st.subheader("Model Prediction:")
+                            st.write(f"Predicted Class: {predicted_class}")
+                            st.write(f"Confidence: {classification_confidence:.2f}%")
+                        else:
+                            st.error("Failed to preprocess the image for model prediction.")
 
-                    if not ocr_result.strip():
-                        st.warning("No text detected. Try a different image or adjust preprocessing.")
+                        # **Step 2: Extract text using OCR**
+                        extracted_text, ocr_confidence = extract_text(image, grayscale=grayscale)
+
+                        if ocr_confidence < 20:
+                            st.write("No Text Found")
+                        else:
+                            st.subheader("Extracted Text:")
+                            st.text_area("", extracted_text, height=200)
+
+                            # **Download Buttons for OCR text**
+                            st.download_button(
+                                label="Download Extracted Text",
+                                data=extracted_text,
+                                file_name="extracted_text.txt",
+                                mime="text/plain"
+                            )
                     else:
-                        st.subheader("Extracted Text:")
-                        st.text_area("OCR Output", ocr_result, height=300, max_chars=3000)
-
-                        # Download Button for OCR result
-                        st.download_button(label="Download OCR Result", data=ocr_result, file_name="ocr_result.txt", mime="text/plain")
-                except UnidentifiedImageError:
-                    st.error("The uploaded file is not a valid image. Please upload a valid image file (jpg, jpeg, png).")
-                except pytesseract.TesseractError:
-                    st.error("An error occurred while processing the image with Tesseract. Please check the image quality.")
+                        st.warning("No valid image found for processing.")
                 except Exception as e:
                     st.error(f"An unexpected error occurred: {str(e)}")
         else:
-            st.info("Please upload or capture an image to extract text.")
+            st.info("Please upload or capture an image for prediction and text extraction.")
 
-    # Clear Image Button
-    if st.button("Clear Image"):
-        st.session_state['uploaded_file'] = None
-        st.session_state['camera_on'] = False
+    # Clear Session State
+    if st.button("Clear Data"):
+        st.session_state["camera_on"] = False
         st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
