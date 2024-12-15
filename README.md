@@ -1,8 +1,7 @@
 
 ---
 
-# Revolutionizing Handwritten Prescription Recognition: A High-Accuracy CNN Model with Explainable AI
-
+# Revolutionizing Handwritten Prescription Recognition
 An AI-driven application designed to interpret and extract text from medical prescriptions. This project leverages a pre-trained deep learning model and OCR technology to enhance medical data digitization.
 
 ## Table of Contents
