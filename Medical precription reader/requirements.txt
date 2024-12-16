@@ -1,7 +1,0 @@
-tensorflow==2.8.0
-streamlit==1.25.0
-pillow==9.2.0
-numpy==1.22.0
-opencv-python==4.7.0.68
-pytesseract==0.3.10
-matplotlib==3.5.3
