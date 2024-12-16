@@ -9,7 +9,8 @@ import cv2
 import json
 
 # Set the Tesseract path (make sure this path points to where Tesseract is installed on your machine)
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'  # Update this path if necessary
+# pytesseract.pytesseract.tesseract_cmd = r'C:\Users\shaik\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'  # Update this path if necessary
+pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
 
 # Set the Streamlit page configuration
 st.set_page_config(page_title="Revolutionizing Handwritten Prescription Recognition: A High-Accuracy CNN Model with Explainable AI", layout="wide")
@@ -340,7 +341,8 @@ def enhance_for_ocr(image, grayscale=False):
         image = np.array(image)
 
         # Ensure grayscale for adaptive thresholding
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        if len(image.shape) == 3 and image.shape[2] == 3:  # Check if the image is RGB
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
         # Apply Gaussian Blur for noise reduction
         image = cv2.GaussianBlur(image, (5, 5), 0)
